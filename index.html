@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voice Recorder App</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #121212;
+      color: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: #1e1e1e;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      text-align: center;
+      width: 90%;
+      max-width: 400px;
+    }
+    h2 { margin-bottom: 20px; font-size: 22px; }
+    .mic-btn {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      font-size: 36px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px auto;
+      box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
+    }
+    .mic-btn.recording {
+      background-color: #dc3545;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+    .status { font-size: 15px; color: #b0b0b0; margin-bottom: 20px; }
+    .audio-container { margin-top: 20px; }
+    audio { width: 100%; border-radius: 8px; }
+    .permission-box {
+      display: none;
+      background-color: #332200;
+      border: 1px solid #ffcc00;
+      color: #ffcc00;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 15px;
+      font-size: 14px;
+    }
+    .permission-btn {
+      background-color: #ffcc00;
+      color: #000;
+      border: none;
+      padding: 8px 16px;
+      margin-top: 10px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>Voice Recorder</h2>
+    
+    <button id="micBtn" class="mic-btn" onclick="toggleRecording()">🎤</button>
+    <div id="statusText" class="status">Tap karke bolna shuru karein</div>
+
+    <div class="audio-container">
+      <audio id="audioPlayer" controls style="display: none;"></audio>
+    </div>
+
+    <div id="permissionBox" class="permission-box">
+      <p>⚠️ Browser ne Mic Access block kiya hai!</p>
+      <p style="font-size:12px; margin-top:5px; color:#ddd;">Top-left Lock (🔒) icon par click karke Mic ko "Allow" karein.</p>
+      <button class="permission-btn" onclick="retryPermission()">Retry / Allow Mic</button>
+    </div>
+  </div>
+
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+    let isRecording = false;
+
+    const micBtn = document.getElementById('micBtn');
+    const statusText = document.getElementById('statusText');
+    const audioPlayer = document.getElementById('audioPlayer');
+    const permissionBox = document.getElementById('permissionBox');
+
+    async function toggleRecording() {
+      if (!isRecording) {
+        await startRecording();
+      } else {
+        stopRecording();
+      }
+    }
+
+    async function startRecording() {
+      audioChunks = [];
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        permissionBox.style.display = 'none';
+        mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.ondataavailable = event => {
+          if (event.data.size > 0) {
+            audioChunks.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+          const audioUrl = URL.createObjectURL(audioBlob);
+          audioPlayer.src = audioUrl;
+          audioPlayer.style.display = 'block';
+        };
+
+        mediaRecorder.start();
+        isRecording = true;
+        micBtn.classList.add('recording');
+        micBtn.innerText = '⏹️';
+        statusText.innerText = "Recording chal rahi hai... dubara tap karke rokein.";
+
+      } catch (err) {
+        console.error("Microphone Access Error: ", err);
+        showPermissionError(err);
+      }
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        
+        isRecording = false;
+        micBtn.classList.remove('recording');
+        micBtn.innerText = '🎤';
+        statusText.innerText = "Recording complete! Niche play karke suniye.";
+      }
+    }
+
+    async function retryPermission() {
+      await startRecording();
+    }
+
+    function showPermissionError(err) {
+      statusText.innerText = "Mic Access Blocked!";
+      permissionBox.style.display = 'block';
+      if(err.name === "NotAllowedError") {
+        alert("Permission denied: Chrome browser address bar ke left Lock(🔒) icon par tap karke Mic Access Allow karein.");
+      }
+    }
+  </script>
+
+</body>
+</html>
